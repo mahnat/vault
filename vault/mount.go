@@ -72,6 +72,13 @@ const (
 	MountTableNoUpdateStorage = false
 )
 
+// DeprecationStatus errors
+var (
+	errMountDeprecated     = errors.New("mount entry associated with deprecated builtin")
+	errMountPendingRemoval = errors.New("mount entry associated with pending removal builtin")
+	errMountRemoved        = errors.New("mount entry associated with removed builtin")
+)
+
 var (
 	// loadMountsFailed if loadMounts encounters an error
 	errLoadMountsFailed = errors.New("failed to setup mount table")
@@ -501,12 +508,6 @@ func (c *Core) decodeMountTable(ctx context.Context, raw []byte) (*MountTable, e
 		if ns == nil {
 			c.logger.Error("namespace on mount entry not found", "namespace_id", entry.NamespaceID, "mount_path", entry.Path, "mount_description", entry.Description)
 			continue
-		}
-
-		// Immediately shutdown the core if deprecated mounts are detected and VAULT_ALLOW_PENDING_REMOVAL_MOUNTS is unset
-		if _, err := c.handleDeprecatedMountEntry(ctx, entry, consts.PluginTypeUnknown); err != nil {
-			c.logger.Error("shutting down core", "error", err)
-			c.Shutdown()
 		}
 
 		entry.namespace = ns
@@ -972,6 +973,8 @@ func (c *Core) taintMountEntry(ctx context.Context, nsID, mountPath string, upda
 // if VAULT_ALLOW_PENDING_REMOVAL_MOUNTS is unset
 // * Removed - log an error about builtin deprecation and return an error
 func (c *Core) handleDeprecatedMountEntry(ctx context.Context, entry *MountEntry, pluginType consts.PluginType) (*logical.Response, error) {
+	resp := &logical.Response{}
+
 	if c.builtinRegistry == nil || entry == nil {
 		return nil, nil
 	}
@@ -989,28 +992,26 @@ func (c *Core) handleDeprecatedMountEntry(ctx context.Context, entry *MountEntry
 
 	status, ok := c.builtinRegistry.DeprecationStatus(t, pluginType)
 	if ok {
-		resp := &logical.Response{}
 		// Deprecation sublogger with some identifying information
 		dl := c.logger.With("name", t, "type", pluginType, "status", status, "path", entry.Path)
-		errDeprecatedMount := fmt.Errorf("mount entry associated with %s builtin", status)
 
 		switch status {
 		case consts.Deprecated:
-			dl.Warn(errDeprecatedMount.Error())
-			resp.AddWarning(errDeprecatedMount.Error())
+			dl.Warn(errMountDeprecated.Error())
+			resp.AddWarning(errMountDeprecated.Error())
 			return resp, nil
 
 		case consts.PendingRemoval:
-			dl.Error(errDeprecatedMount.Error())
-			if !PendingRemovalMountsAllowed {
-				return nil, fmt.Errorf("could not mount %q: %w", t, errDeprecatedMount)
+			dl.Error(errMountPendingRemoval.Error())
+			if PendingRemovalMountsAllowed {
+				c.Logger().Info("mount allowed by environment variable", "env", consts.VaultAllowPendingRemovalMountsEnv)
+				resp.AddWarning(errMountPendingRemoval.Error())
+				return resp, nil
 			}
-			resp.AddWarning(errDeprecatedMount.Error())
-			c.Logger().Info("mount allowed by environment variable", "env", consts.VaultAllowPendingRemovalMountsEnv)
-			return resp, nil
+			return nil, fmt.Errorf("could not mount %q: %w", t, errMountPendingRemoval)
 
 		case consts.Removed:
-			return nil, fmt.Errorf("could not mount %s: %w", t, errDeprecatedMount)
+			return nil, fmt.Errorf("could not mount %s: %w", t, errMountRemoved)
 		}
 	}
 	return nil, nil
@@ -1486,6 +1487,11 @@ func (c *Core) setupMounts(ctx context.Context) error {
 			// don't set the running version to a builtin if it is running as an external plugin
 			if externaler, ok := backend.(logical.Externaler); !ok || !externaler.IsExternal() {
 				entry.RunningVersion = versions.GetBuiltinVersion(consts.PluginTypeSecrets, entry.Type)
+				_, err := c.handleDeprecatedMountEntry(ctx, entry, consts.PluginTypeSecrets)
+				if err != nil {
+					c.logger.Error("shutting down core", "error", err)
+					c.Shutdown()
+				}
 			}
 		}
 

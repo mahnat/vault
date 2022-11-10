@@ -1166,16 +1166,21 @@ func (b *SystemBackend) handleMount(ctx context.Context, req *logical.Request, d
 		Version:               pluginVersion,
 	}
 
-	// Detect and handle deprecated secrets engines
-	resp, err = b.Core.handleDeprecatedMountEntry(ctx, me, consts.PluginTypeSecrets)
-	if err != nil {
-		return handleError(err)
-	}
-
 	// Attempt mount
 	if err := b.Core.mount(ctx, me); err != nil {
 		b.Backend.Logger().Error("error occurred during enable mount", "path", me.Path, "error", err)
 		return handleError(err)
+	}
+
+	if versions.IsBuiltinVersion(me.RunningVersion) {
+		resp, err = b.Core.handleDeprecatedMountEntry(ctx, me, consts.PluginTypeSecrets)
+		if err != nil {
+			// We failed to evaluate filtered paths so we are undoing the mount operation
+			if unmountInternalErr := b.Core.unmountInternal(ctx, me.Path, MountTableUpdateStorage); unmountInternalErr != nil {
+				b.Core.logger.Error("failed to unmount", "error", unmountInternalErr)
+			}
+			return handleError(err)
+		}
 	}
 
 	return resp, nil
@@ -2595,16 +2600,23 @@ func (b *SystemBackend) handleEnableAuth(ctx context.Context, req *logical.Reque
 		Version:               pluginVersion,
 	}
 
-	resp, err := b.Core.handleDeprecatedMountEntry(ctx, me, consts.PluginTypeCredential)
-	if err != nil {
-		return handleError(err)
-	}
-
 	// Attempt enabling
 	if err := b.Core.enableCredential(ctx, me); err != nil {
 		b.Backend.Logger().Error("error occurred during enable credential", "path", me.Path, "error", err)
 		return handleError(err)
 	}
+
+	resp := &logical.Response{}
+	if versions.IsBuiltinVersion(me.RunningVersion) {
+		resp, err = b.Core.handleDeprecatedMountEntry(ctx, me, consts.PluginTypeCredential)
+		if err != nil {
+			if disableCredentialErr := b.Core.disableCredentialInternal(ctx, me.Path, MountTableUpdateStorage); disableCredentialErr != nil {
+				b.Core.logger.Error("failed to disable credential", "error", disableCredentialErr)
+			}
+			return handleError(err)
+		}
+	}
+
 	return resp, nil
 }
 
