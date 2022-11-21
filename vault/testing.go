@@ -1647,6 +1647,8 @@ func NewTestCluster(t testing.T, base *CoreConfig, opts *TestClusterOptions) *Te
 
 		coreConfig.RollbackPeriod = base.RollbackPeriod
 
+		coreConfig.PendingRemovalMountsAllowed = base.PendingRemovalMountsAllowed
+
 		testApplyEntBaseConfig(coreConfig, base)
 	}
 	if coreConfig.ClusterName == "" {

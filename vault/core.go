@@ -644,6 +644,8 @@ type Core struct {
 	effectiveSDKVersion string
 
 	rollbackPeriod time.Duration
+
+	pendingRemovalMountsAllowed bool
 }
 
 func (c *Core) HAState() consts.HAState {
@@ -778,6 +780,8 @@ type CoreConfig struct {
 	EffectiveSDKVersion string
 
 	RollbackPeriod time.Duration
+
+	PendingRemovalMountsAllowed bool
 }
 
 // GetServiceRegistration returns the config's ServiceRegistration, or nil if it does
@@ -931,6 +935,7 @@ func CreateCore(conf *CoreConfig) (*Core, error) {
 		disableSSCTokens:               conf.DisableSSCTokens,
 		effectiveSDKVersion:            effectiveSDKVersion,
 		userFailedLoginInfo:            make(map[FailedLoginUser]*FailedLoginInfo),
+		pendingRemovalMountsAllowed:    conf.PendingRemovalMountsAllowed,
 	}
 
 	c.standbyStopCh.Store(make(chan struct{}))
