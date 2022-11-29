@@ -282,12 +282,12 @@ func TestCore_EnableExternalPlugin_PendingRemoval(t *testing.T) {
 	t.Cleanup(func() { cleanup(t) })
 
 	// create an external plugin to shadow the builtin "app-id"
+	pluginName := "pending-removal-test-plugin"
 	plugin := compilePlugin(t, consts.PluginTypeCredential, "v1.2.3", pluginDir)
-	err := os.Link(path.Join(pluginDir, plugin.fileName), path.Join(pluginDir, "app-id"))
+	err := os.Link(path.Join(pluginDir, plugin.fileName), path.Join(pluginDir, pluginName))
 	if err != nil {
 		t.Fatal(err)
 	}
-	pluginName := "app-id"
 	conf := &CoreConfig{
 		BuiltinRegistry: NewMockBuiltinRegistry(),
 		PluginDirectory: pluginDir,

@@ -2248,7 +2248,7 @@ func NewMockBuiltinRegistry() *mockBuiltinRegistry {
 			"mysql-database-plugin":      {PluginType: consts.PluginTypeDatabase},
 			"postgresql-database-plugin": {PluginType: consts.PluginTypeDatabase},
 			"approle":                    {PluginType: consts.PluginTypeCredential},
-			"app-id": {
+			"pending-removal-test-plugin": {
 				PluginType:        consts.PluginTypeCredential,
 				DeprecationStatus: consts.PendingRemoval,
 			},
@@ -2278,9 +2278,7 @@ func (m *mockBuiltinRegistry) Get(name string, pluginType consts.PluginType) (fu
 	}
 
 	switch name {
-	case "approle":
-		fallthrough
-	case "app-id":
+	case "approle", "pending-removal-test-plugin":
 		return toFunc(approle.Factory), true
 	case "aws":
 		return toFunc(func(ctx context.Context, config *logical.BackendConfig) (logical.Backend, error) {
@@ -2340,7 +2338,7 @@ func (m *mockBuiltinRegistry) Keys(pluginType consts.PluginType) []string {
 		}
 	case consts.PluginTypeCredential:
 		return []string{
-			"app-id",
+			"pending-removal-test-plugin",
 			"approle",
 		}
 	}
