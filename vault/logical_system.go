@@ -2606,7 +2606,7 @@ func (b *SystemBackend) handleEnableAuth(ctx context.Context, req *logical.Reque
 		return handleError(err)
 	}
 
-	resp := &logical.Response{}
+	var resp *logical.Response
 	if versions.IsBuiltinVersion(me.RunningVersion) {
 		resp, err = b.Core.handleDeprecatedMountEntry(ctx, me, consts.PluginTypeCredential)
 		if err != nil {
