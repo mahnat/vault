@@ -281,7 +281,7 @@ func TestCore_EnableExternalPlugin_PendingRemoval(t *testing.T) {
 	pluginDir, cleanup := MakeTestPluginDir(t)
 	t.Cleanup(func() { cleanup(t) })
 
-	// create an external plugin to shadow the builtin "app-id"
+	// create an external plugin to shadow the builtin "pending-removal-test-plugin"
 	pluginName := "pending-removal-test-plugin"
 	plugin := compilePlugin(t, consts.PluginTypeCredential, "v1.2.3", pluginDir)
 	err := os.Link(path.Join(pluginDir, plugin.fileName), path.Join(pluginDir, pluginName))
@@ -297,7 +297,7 @@ func TestCore_EnableExternalPlugin_PendingRemoval(t *testing.T) {
 
 	pendingRemovalString := "pending removal"
 
-	// Create a new auth method with builtin app-id
+	// Create a new auth method with builtin pending-removal-test-plugin
 	resp, err := mountPluginWithResponse(t, c.systemBackend, pluginName, consts.PluginTypeCredential, "", "")
 	if err == nil {
 		t.Fatalf("expected error when mounting deprecated backend")
