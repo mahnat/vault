@@ -100,8 +100,6 @@ func TestSystemBackend_Plugin_secret(t *testing.T) {
 	}
 }
 
-///narjer
-
 func TestSystemBackend_Plugin_auth(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
